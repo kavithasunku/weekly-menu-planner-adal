@@ -122,5 +122,5 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Links
 
-- **Live Demo:** *(Add your Vercel deployment URL)*
-- **GitHub:** *(Add your GitHub repo URL — ensure it is Public)*
+- **Live Demo:** https://menumagic-six.vercel.app
+- **GitHub:** https://github.com/kavithasunku/weekly-menu-planner-adal
