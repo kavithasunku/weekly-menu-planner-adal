@@ -5,10 +5,18 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 // Schema for saving a menu
+const MAX_JSON_SIZE = 500 * 1024; // 500 KB
+
 const saveMenuSchema = z.object({
-  name: z.string().min(1),
-  plannerState: z.any(),
-  generatedMenu: z.any(),
+  name: z.string().min(1).max(200),
+  plannerState: z.record(z.string(), z.any()).refine(
+    (v) => JSON.stringify(v).length <= MAX_JSON_SIZE,
+    { message: "plannerState exceeds maximum allowed size" }
+  ),
+  generatedMenu: z.record(z.string(), z.any()).refine(
+    (v) => JSON.stringify(v).length <= MAX_JSON_SIZE,
+    { message: "generatedMenu exceeds maximum allowed size" }
+  ),
   weekStartDate: z.string().optional(),
   weekEndDate: z.string().optional(),
   isFavorite: z.boolean().optional(),

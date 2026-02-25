@@ -1,5 +1,6 @@
 import { CalendarDays, ChefHat, Clock, Heart, Salad, Users, Utensils, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 export default function LandingPage() {
   return (
@@ -22,9 +23,7 @@ export default function LandingPage() {
             <Link href="#features" className="hidden md:block text-sm font-medium tracking-wide text-[#7A7168] hover:text-[#3A332C] transition-colors">
               Features
             </Link>
-            <button className="bg-[#3A332C] text-white px-7 py-2.5 rounded-full text-sm font-medium hover:bg-[#1A1714] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 shadow-md shadow-[#3A332C]/20 border border-[#3A332C]">
-              Log In
-            </button>
+            <UserMenu />
           </div>
         </div>
       </nav>
@@ -57,7 +56,7 @@ export default function LandingPage() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link href="/planner" className="group w-full sm:w-auto bg-[#AF8F7C] text-white px-9 py-4 rounded-full font-semibold text-lg hover:bg-[#9A7B68] transition-all shadow-xl shadow-[#AF8F7C]/25 flex items-center justify-center gap-3 border border-[#AF8F7C]">
             <Utensils size={20} className="text-white/80" />
-            <span>Get Started Free</span>
+            <span>Get Started For Free</span>
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </Link>
           <Link href="/sample-plan" className="w-full sm:w-auto bg-white/50 backdrop-blur-sm text-[#3A332C] border border-[#EBE6DE] px-8 py-4 rounded-full font-medium text-lg hover:bg-white hover:border-[#AF8F7C]/30 transition-all flex items-center justify-center gap-3 shadow-sm hover:shadow-md">
