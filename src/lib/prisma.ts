@@ -7,7 +7,12 @@ const { Pool } = pg
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL?.replace('?pgbouncer=true', '').replace('&pgbouncer=true', '')
+  //const connectionString = process.env.DATABASE_URL?.replace('?pgbouncer=true', '').replace('&pgbouncer=true', '')
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL environment variable is not set')
+  }
+  const connectionString = databaseUrl.replace('?pgbouncer=true', '').replace('&pgbouncer=true', '')
   const pool = new Pool({ connectionString })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
