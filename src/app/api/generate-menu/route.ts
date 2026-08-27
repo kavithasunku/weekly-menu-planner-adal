@@ -101,7 +101,8 @@ async function generate(req: Request): Promise<
       weeklyMenu: result.object.weeklyMenu.map((day) => ({
         day: day.day,
         meals: day.meals.reduce((acc: any, meal) => {
-          acc[meal.type] = {
+          const normalizedType = meal.type.charAt(0).toUpperCase() + meal.type.slice(1).toLowerCase();
+          acc[normalizedType] = {
             name: meal.name,
             description: meal.description,
             prepTime: meal.prepTime,
