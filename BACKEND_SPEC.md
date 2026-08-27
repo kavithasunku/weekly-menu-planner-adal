@@ -141,7 +141,7 @@ interface AIGeneratedMenu {
 | Framework | Next.js | 16.x |
 | Runtime | Node.js | 20.x |
 | Database | PostgreSQL (Supabase) | 15.x |
-| ORM | Prisma | 6.x |
+| ORM | Prisma | 7.x |
 | Authentication | Auth.js (NextAuth) | 5.x |
 | AI SDK | Vercel AI SDK | 4.x |
 | AI Model | OpenAI GPT-4o | - |
@@ -616,13 +616,16 @@ CREATE POLICY "shopping_exports_owner_read" ON shopping_exports
 
 ```prisma
 // schema.prisma
+// NOTE: In Prisma 7, database connection URLs are configured in prisma.config.ts,
+// NOT in the datasource block. The datasource block below intentionally omits
+// the `url` and `directUrl` fields — they live in prisma.config.ts instead.
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -795,5 +798,66 @@ model ShoppingExport {
 
 ---
 
+### B. Prisma Configuration (`prisma.config.ts`)
+
+In **Prisma 7**, the database connection URLs must be defined in `prisma.config.ts` rather than the `schema.prisma` datasource block:
+
+```typescript
+// prisma.config.ts
+import path from "path";
+import { defineConfig } from "prisma/config";
+
+export default defineConfig({
+  earlyAccess: true,
+  schema: path.join("prisma", "schema.prisma"),
+  migrate: {
+    async adapter() {
+      // Uses DIRECT_URL for migrations (bypasses PgBouncer).
+      // Falls back to DATABASE_URL if DIRECT_URL is not set.
+      const { Pool } = await import("pg");
+      const { PrismaPg } = await import("@prisma/adapter-pg");
+      const connectionString =
+        process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+      if (!connectionString)
+        throw new Error("DIRECT_URL or DATABASE_URL must be set");
+      return new PrismaPg(new Pool({ connectionString }));
+    },
+  },
+});
+```
+
+### C. Runtime Prisma Client (`src/lib/prisma.ts`)
+
+The runtime client manually manages a `pg.Pool` to support PgBouncer in transaction-pooling mode. It strips the `?pgbouncer=true` parameter before passing the connection string to `pg.Pool` (PgBouncer handles pooling externally):
+
+```typescript
+// src/lib/prisma.ts
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+
+function createPrismaClient() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl)
+    throw new Error(
+      "DATABASE_URL environment variable is not set. " +
+        "Add it to your .env.local (local) or Vercel Environment Variables (production)."
+    );
+  // Strip pgbouncer param — pg.Pool doesn't support it, PgBouncer handles it externally
+  const connectionString = databaseUrl
+    .replace("?pgbouncer=true", "")
+    .replace("&pgbouncer=true", "");
+  const pool = new Pool({ connectionString });
+  const adapter = new PrismaPg(pool);
+  return new PrismaClient({ adapter });
+}
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+```
+
+---
+
 *End of Specification Document*  
-*Last Updated: February 24, 2026*
+*Last Updated: March 8, 2026*

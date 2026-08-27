@@ -69,8 +69,12 @@ export function ResultsStep({
     (a, b) => MEAL_ORDER[a] - MEAL_ORDER[b]
   );
 
-  const isComplexRecipe = (recipe: Omit<MealRecipe, "mealType">) =>
-    (recipe.prepTime + recipe.cookTime) > formData.cookingTime;
+  const BUSY_DAY_MAX_MINS = 20;
+
+  const isOverBudget = (recipe: Omit<MealRecipe, "mealType">, isBusyDay: boolean) => {
+    const limit = isBusyDay ? BUSY_DAY_MAX_MINS : formData.cookingTime;
+    return (recipe.prepTime + recipe.cookTime) > limit;
+  };
 
   const performSwap = async (src: DragItem, dest: DragItem) => {
     if (src.day === dest.day && src.mealType === dest.mealType) return;
@@ -231,6 +235,16 @@ export function ResultsStep({
           </div>
         </div>
 
+        {/* Busy Day Time Assumption Note */}
+        {formData.busyDays.length > 0 && (
+          <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs text-blue-800">
+            <Timer size={14} className="flex-shrink-0 text-blue-500" />
+            <span>
+              <span className="font-semibold">Busy day assumption:</span> Max cooking time on busy days is set to {BUSY_DAY_MAX_MINS} mins. Meals exceeding this are flagged below.
+            </span>
+          </div>
+        )}
+
         {/* Busy Days Banner */}
         {(() => {
           if (formData.busyDays.length === 0) return null;
@@ -238,7 +252,7 @@ export function ResultsStep({
           localMenu.weeklyMenu.forEach(({ day, meals }) => {
             if (!formData.busyDays.includes(day)) return;
             Object.values(meals).forEach((recipe) => {
-              if (recipe && isComplexRecipe(recipe)) conflicting.push({ day, name: recipe.name });
+              if (recipe && isOverBudget(recipe, true)) conflicting.push({ day, name: recipe.name });
             });
           });
           if (conflicting.length === 0) {
@@ -299,7 +313,7 @@ export function ResultsStep({
                   const mealName = mealType.charAt(0).toUpperCase() + mealType.slice(1);
                   const recipe = meals[mealName];
                   const isDragTarget = dragOver?.day === day && dragOver?.mealType === mealName;
-                  const isConflict = isBusy && recipe && isComplexRecipe(recipe);
+                  const isConflict = recipe && isOverBudget(recipe, isBusy);
 
                   return (
                     <div
@@ -323,7 +337,7 @@ export function ResultsStep({
                           className="h-full p-2.5 cursor-grab active:cursor-grabbing group"
                         >
                           {isConflict && (
-                            <span className="absolute top-1.5 right-1.5 text-amber-500" title={`${recipe.prepTime + recipe.cookTime} min – exceeds ${formData.cookingTime} min budget`}>
+                            <span className="absolute top-1.5 right-1.5 text-amber-500" title={`${recipe.prepTime + recipe.cookTime} min – exceeds ${isBusy ? BUSY_DAY_MAX_MINS : formData.cookingTime} min budget`}>
                               <AlertTriangle size={12} />
                             </span>
                           )}

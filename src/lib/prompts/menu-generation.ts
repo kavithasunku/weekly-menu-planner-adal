@@ -19,8 +19,10 @@ export function buildMenuGenerationPrompt(params: PromptParams): string {
   Before suggesting ANY menu, you MUST validate:
   1. ✓ Total complex meals per week ≤ user's specified limit (typically 2-3 max)
   2. ✓ No more than 1 complex dish per day
-  3. ✓ Total daily cook time ≤ user's specified limit (typically 90 minutes)
-  4. ✓ All dietary restrictions strictly followed
+  3. ✓ Each individual meal's (cookingTime) MUST be ≤ the user's maximum cooking time for that day — NO EXCEPTIONS
+  4. ✓ For BUSY days: each meal's (cookingTime) MUST be ≤ 15 minutes — NO EXCEPTIONS
+  5. ✓ For REGULAR days: each meal's (cookingTime) MUST be ≤ ${cookingTime} minutes — NO EXCEPTIONS
+  6. ✓ All dietary restrictions strictly followed
   
   ## COMPLEXITY DEFINITION - STRICTLY ENFORCE
 
@@ -44,7 +46,10 @@ export function buildMenuGenerationPrompt(params: PromptParams): string {
   - Preferred cuisines: ${cuisines.join(", ")}
   - Maximum cooking time on regular days: ${cookingTime} minutes
   - Busy days (need ultra-fast meals under 15 mins, or leftovers): ${busyDays.join(", ")}
-  - Additional notes: ${notes || "None"}
+  ## ⚠️ MANDATORY USER NOTES — HIGHEST PRIORITY
+  The user has provided the following additional notes. Treat these as **mandatory overrides** that take precedence over all default suggestions. Every single meal generated MUST comply with these notes:
+  "${notes || "None"}"
+  If the notes conflict with other preferences, the notes WIN. Do not ignore or deprioritize them.
 
   Generate a diverse, delicious, and realistic menu. 
   - Each day contains a list of meals. For each meal, include the "type" (e.g., "Breakfast", "Dinner") and the recipe scaled for ONE serving (the UI will multiply by the number of adults).

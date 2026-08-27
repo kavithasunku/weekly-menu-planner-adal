@@ -37,8 +37,8 @@ MenuMagic solves this by combining AI menu generation with a hyper-personalized 
 | Framework | Next.js 16 (App Router) |
 | Styling | Tailwind CSS v4 |
 | AI | Vercel AI SDK + OpenAI GPT-4o |
-| Database | PostgreSQL via Supabase + Prisma ORM |
-| Auth | NextAuth v5 (Magic Link / Email) |
+| Database | PostgreSQL via Supabase + Prisma ORM 7 |
+| Auth | NextAuth v5 (Magic Link + Google OAuth) |
 | Deployment | Vercel |
 
 ---
@@ -53,7 +53,7 @@ MenuMagic solves this by combining AI menu generation with a hyper-personalized 
 /api/generate-menu          → POST  — AI menu generation (GPT-4o)
 /api/menus                  → GET / POST — list or save menus
 /api/menus/[id]             → GET / PATCH / DELETE — individual menu
-/api/menus/[id]/swap        → POST  — persist meal swap position
+/api/menus/[id]/swap        → PATCH — persist meal swap position
 /api/recipes/favorites      → POST  — add favourite recipe
 /api/recipes/favorites/[id] → DELETE — remove favourite recipe
 /api/instacart              → POST  — generate Instacart shopping link
@@ -86,10 +86,13 @@ Create a `.env.local` file in the project root:
 
 ```env
 OPENAI_API_KEY=           # OpenAI API key for menu generation
-DATABASE_URL=             # Supabase PostgreSQL pooled connection string
-DIRECT_URL=               # Supabase direct connection (for Prisma migrations)
+DATABASE_URL=             # Supabase PostgreSQL pooled connection string (with ?pgbouncer=true)
+DIRECT_URL=               # Supabase direct connection string (for Prisma migrations)
 AUTH_SECRET=              # NextAuth secret (openssl rand -base64 32)
 AUTH_RESEND_KEY=          # Resend API key for magic link emails
+AUTH_GOOGLE_ID=           # Google OAuth client ID
+AUTH_GOOGLE_SECRET=       # Google OAuth client secret
+INSTACART_API_KEY=        # Instacart Developer Platform API key
 NEXTAUTH_URL=             # Your deployment URL (e.g. https://menumagic.vercel.app)
 ```
 
