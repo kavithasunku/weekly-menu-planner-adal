@@ -30,12 +30,6 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-6 pt-24 pb-32 text-center relative">
-        {/* Product Name Badge */}
-        <div className="inline-flex items-center gap-2 bg-[#AF8F7C]/10 border border-[#AF8F7C]/20 text-[#8C7362] px-5 py-2 rounded-full text-sm font-semibold tracking-widest uppercase mb-8">
-          <ChefHat size={15} />
-          MenuMagic
-        </div>
-
         {/* Tagline */}
         <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif tracking-tight text-[#3A332C] mb-6 leading-[1.1]">
           Your Weekly Menu, <br className="hidden md:block" />

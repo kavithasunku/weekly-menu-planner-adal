@@ -69,11 +69,8 @@ export function ResultsStep({
     (a, b) => MEAL_ORDER[a] - MEAL_ORDER[b]
   );
 
-  const BUSY_DAY_MAX_MINS = 20;
-
-  const isOverBudget = (recipe: Omit<MealRecipe, "mealType">, isBusyDay: boolean) => {
-    const limit = isBusyDay ? BUSY_DAY_MAX_MINS : formData.cookingTime;
-    return (recipe.prepTime + recipe.cookTime) > limit;
+  const isOverBudget = (recipe: Omit<MealRecipe, "mealType">) => {
+    return (recipe.prepTime + recipe.cookTime) > formData.cookingTime;
   };
 
   const performSwap = async (src: DragItem, dest: DragItem) => {
@@ -201,6 +198,7 @@ export function ResultsStep({
           sourceMenuId={savedMenuId}
           sourceDay={selectedRecipeDay}
           onRequestAuth={() => { setSelectedRecipe(null); setShowAuthModal(true); }}
+          isDiabeticFriendly={formData.diets.includes("diabetic-friendly")}
         />
       )}
 
@@ -236,15 +234,6 @@ export function ResultsStep({
         </div>
 
         {/* Busy Day Time Assumption Note */}
-        {formData.busyDays.length > 0 && (
-          <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs text-blue-800">
-            <Timer size={14} className="flex-shrink-0 text-blue-500" />
-            <span>
-              <span className="font-semibold">Busy day assumption:</span> Max cooking time on busy days is set to {BUSY_DAY_MAX_MINS} mins. Meals exceeding this are flagged below.
-            </span>
-          </div>
-        )}
-
         {/* Busy Days Banner */}
         {(() => {
           if (formData.busyDays.length === 0) return null;
@@ -252,7 +241,7 @@ export function ResultsStep({
           localMenu.weeklyMenu.forEach(({ day, meals }) => {
             if (!formData.busyDays.includes(day)) return;
             Object.values(meals).forEach((recipe) => {
-              if (recipe && isOverBudget(recipe, true)) conflicting.push({ day, name: recipe.name });
+              if (recipe && isOverBudget(recipe)) conflicting.push({ day, name: recipe.name });
             });
           });
           if (conflicting.length === 0) {
@@ -313,7 +302,7 @@ export function ResultsStep({
                   const mealName = mealType.charAt(0).toUpperCase() + mealType.slice(1);
                   const recipe = meals[mealName];
                   const isDragTarget = dragOver?.day === day && dragOver?.mealType === mealName;
-                  const isConflict = recipe && isOverBudget(recipe, isBusy);
+                  const isConflict = recipe && isOverBudget(recipe);
 
                   return (
                     <div
@@ -337,7 +326,7 @@ export function ResultsStep({
                           className="h-full p-2.5 cursor-grab active:cursor-grabbing group"
                         >
                           {isConflict && (
-                            <span className="absolute top-1.5 right-1.5 text-amber-500" title={`${recipe.prepTime + recipe.cookTime} min – exceeds ${isBusy ? BUSY_DAY_MAX_MINS : formData.cookingTime} min budget`}>
+                            <span className="absolute top-1.5 right-1.5 text-amber-500" title={`${recipe.prepTime + recipe.cookTime} min – exceeds ${formData.cookingTime} min budget`}>
                               <AlertTriangle size={12} />
                             </span>
                           )}

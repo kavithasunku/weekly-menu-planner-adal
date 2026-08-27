@@ -15,7 +15,8 @@ const CUISINES: { id: CuisineType; label: string }[] = [
   { id: "asian", label: "Asian" },
   { id: "american", label: "American" },
   { id: "mediterranean", label: "Mediterranean" },
-  { id: "indian", label: "Indian" },
+  { id: "north-indian", label: "North Indian" },
+  { id: "south-indian", label: "South Indian" },
 ];
 
 const DIETS: { id: DietType; label: string }[] = [
@@ -25,6 +26,7 @@ const DIETS: { id: DietType; label: string }[] = [
   { id: "gluten-free", label: "Gluten-free" },
   { id: "keto", label: "Keto" },
   { id: "low-carb", label: "Low-carb" },
+  { id: "diabetic-friendly", label: "Diabetic-friendly" },
 ];
 
 interface Props {

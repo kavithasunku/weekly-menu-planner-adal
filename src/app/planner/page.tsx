@@ -326,18 +326,18 @@ export default function PlannerPage() {
             <div key={step.id} className="flex items-center">
               <div
                 className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-500 ${
-                  currentStep > step.id
+                  isComplete || currentStep > step.id
                     ? "bg-[#AF8F7C] border-[#AF8F7C] text-white"
                     : currentStep === step.id
                     ? "border-[#AF8F7C] text-[#AF8F7C] bg-white shadow-lg shadow-[#AF8F7C]/20"
                     : "border-[#D4CEC6] text-[#D4CEC6]"
                 }`}
               >
-                {currentStep > step.id ? <Check size={18} /> : <step.icon size={18} />}
+                {isComplete || currentStep > step.id ? <Check size={18} /> : <step.icon size={18} />}
               </div>
               <span
                 className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${
-                  currentStep >= step.id ? "text-[#3A332C]" : "text-[#B8B0A4]"
+                  isComplete || currentStep >= step.id ? "text-[#3A332C]" : "text-[#B8B0A4]"
                 }`}
               >
                 {step.title}
@@ -345,7 +345,7 @@ export default function PlannerPage() {
               {idx < STEPS.length - 1 && (
                 <div
                   className={`w-8 sm:w-16 h-0.5 mx-2 transition-colors duration-500 ${
-                    currentStep > step.id ? "bg-[#AF8F7C]" : "bg-[#EBE6DE]"
+                    isComplete || currentStep > step.id ? "bg-[#AF8F7C]" : "bg-[#EBE6DE]"
                   }`}
                 />
               )}

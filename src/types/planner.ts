@@ -1,6 +1,6 @@
 export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
-export type CuisineType = "italian" | "mexican" | "asian" | "american" | "mediterranean" | "indian";
-export type DietType = "none" | "vegetarian" | "vegan" | "gluten-free" | "keto" | "low-carb";
+export type CuisineType = "italian" | "mexican" | "asian" | "american" | "mediterranean" | "north-indian" | "south-indian";
+export type DietType = "none" | "vegetarian" | "vegan" | "gluten-free" | "keto" | "low-carb" | "diabetic-friendly";
 
 export interface PlannerState {
   adults: number;

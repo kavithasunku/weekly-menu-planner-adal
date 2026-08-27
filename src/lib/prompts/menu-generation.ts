@@ -10,8 +10,20 @@ export interface PromptParams {
   notes: string;
 }
 
+const DIABETIC_FRIENDLY_GUIDANCE = `
+  ## ⚠️ DIABETIC-FRIENDLY CONSTRAINTS - STRICTLY ENFORCE
+  The user selected "Diabetic-friendly" as a dietary restriction. For every meal:
+  1. ✓ Favor low-to-moderate glycemic index carbs (whole grains, legumes, non-starchy vegetables) over refined carbs (white rice, white bread/pasta, refined flour, sugary cereal).
+  2. ✓ No added sugars, sugary sauces/glazes, desserts, or sweetened beverages/juices — use spices, herbs, citrus, or sugar-free alternatives for flavor instead.
+  3. ✓ Pair every carb source with fiber, protein, or healthy fat in the same meal (e.g., grains + legumes/lean protein/nuts) to blunt blood-sugar spikes.
+  4. ✓ Keep starchy-carb portions moderate and roughly consistent meal-to-meal rather than one very carb-heavy meal.
+  5. ✓ Prefer grilling, steaming, roasting, or sautéing over deep-frying or heavy cream/butter-based sauces.
+  Note in the recipe descriptions is not required, but the above must be reflected in the actual ingredients and preparation. This is general dietary guidance, not medical advice — it does not replace a doctor's or dietitian's individualized carb/insulin targets.
+`;
+
 export function buildMenuGenerationPrompt(params: PromptParams): string {
   const { adults, kids, kidsAges, meals, cuisines, diets, busyDays, cookingTime, notes } = params;
+  const isDiabeticFriendly = diets.some((d) => d.toLowerCase() === "diabetic-friendly");
 
   return `You are an expert meal planner, dietician and culinary assistant. Create personalized weekly menu plans that are practical, nutritious, and delicious. Use the user preferences provided separately to customize all meal suggestions.
   Create a 7-day weekly menu plan for a family of ${adults} adults and ${kids} kids (ages: ${kidsAges.join(", ")}).
@@ -23,7 +35,7 @@ export function buildMenuGenerationPrompt(params: PromptParams): string {
   4. ✓ For BUSY days: each meal's (cookingTime) MUST be ≤ 15 minutes — NO EXCEPTIONS
   5. ✓ For REGULAR days: each meal's (cookingTime) MUST be ≤ ${cookingTime} minutes — NO EXCEPTIONS
   6. ✓ All dietary restrictions strictly followed
-  
+  ${isDiabeticFriendly ? DIABETIC_FRIENDLY_GUIDANCE : ""}
   ## COMPLEXITY DEFINITION - STRICTLY ENFORCE
 
 ### What Makes a Dish COMPLEX:

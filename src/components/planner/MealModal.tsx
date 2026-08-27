@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart } from "lucide-react";
+import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope } from "lucide-react";
 import { MealRecipe, MealType } from "@/types/planner";
 
 const MEAL_TYPE_ICONS: Record<MealType, string> = {
@@ -19,9 +19,10 @@ interface Props {
   sourceMenuId: string | null;
   sourceDay: string;
   onRequestAuth: () => void;
+  isDiabeticFriendly: boolean;
 }
 
-export function MealModal({ recipe, adults, onClose, sessionStatus, sourceMenuId, sourceDay, onRequestAuth }: Props) {
+export function MealModal({ recipe, adults, onClose, sessionStatus, sourceMenuId, sourceDay, onRequestAuth, isDiabeticFriendly }: Props) {
   const [favId, setFavId] = useState<string | null>(null);
   const [isSavingFav, setIsSavingFav] = useState(false);
   const [favError, setFavError] = useState(false);
@@ -125,6 +126,15 @@ export function MealModal({ recipe, adults, onClose, sessionStatus, sourceMenuId
 
         <div className="px-6 py-5 space-y-6">
           <p className="text-[#7A7168] font-light leading-relaxed">{recipe.description}</p>
+
+          {isDiabeticFriendly && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-xl border border-blue-200 text-xs text-blue-800">
+              <Stethoscope size={14} className="flex-shrink-0 mt-0.5 text-blue-500" />
+              <span>
+                This recipe was AI-generated with diabetic-friendly guidance, not written or verified by a nutritionist or physician. Please check with your doctor or a registered dietitian before relying on it for strict dietary management.
+              </span>
+            </div>
+          )}
 
           {/* Timing */}
           <div className="flex gap-4">
