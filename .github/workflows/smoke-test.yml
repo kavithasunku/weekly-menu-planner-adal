@@ -1,9 +1,11 @@
 name: Deployment Smoke Test
 
 # Fires whenever Vercel's GitHub integration marks a deployment (preview or
-# production) as ready. No secrets needed — these are two free requests
-# against the public deployment URL, both expected to fail fast (429/401)
-# before ever reaching the database or OpenAI.
+# production) as ready. Two free requests against the public deployment URL,
+# both expected to fail fast (429/401) before ever reaching the database or
+# OpenAI. Vercel's Deployment Protection puts an auth wall in front of every
+# deployment URL, so requests carry the Protection Bypass for Automation
+# secret to get through it.
 on:
   deployment_status:
 
@@ -13,10 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Guest over the free-generation limit gets 429 (no AI call)
+        env:
+          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           URL="${{ github.event.deployment_status.target_url }}"
           STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" -X POST "$URL/api/generate-menu" \
             -H "Content-Type: application/json" \
+            -H "x-vercel-protection-bypass: $BYPASS" \
             -b "free_gen_count=99" \
             -d '{"adults":2,"kids":0,"kidsAges":[],"meals":["dinner"],"cuisines":["italian"],"diets":["none"],"busyDays":[],"cookingTime":30,"notes":""}')
           echo "Response body:"; cat /tmp/resp.json; echo
@@ -24,9 +29,12 @@ jobs:
           test "$STATUS" = "429"
 
       - name: Unauthenticated menus request gets 401 (DB/auth stack reachable)
+        env:
+          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           URL="${{ github.event.deployment_status.target_url }}"
-          STATUS=$(curl -s -o /tmp/resp2.json -w "%{http_code}" "$URL/api/menus")
+          STATUS=$(curl -s -o /tmp/resp2.json -w "%{http_code}" "$URL/api/menus" \
+            -H "x-vercel-protection-bypass: $BYPASS")
           echo "Response body:"; cat /tmp/resp2.json; echo
           echo "Status: $STATUS"
           test "$STATUS" = "401"
