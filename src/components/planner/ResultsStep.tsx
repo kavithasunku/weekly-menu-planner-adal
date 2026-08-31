@@ -51,6 +51,7 @@ export function ResultsStep({
   );
   const [selectedRecipe, setSelectedRecipe] = useState<MealRecipe | null>(null);
   const [selectedRecipeDay, setSelectedRecipeDay] = useState<string>("");
+  const [selectedMealTypeKey, setSelectedMealTypeKey] = useState<string>("");
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
@@ -184,7 +185,42 @@ export function ResultsStep({
         : ing.amount,
     }));
     setSelectedRecipeDay(day);
+    setSelectedMealTypeKey(mealTypeStr);
     setSelectedRecipe({ ...recipe, mealType: mealTypeStr.toLowerCase() as MealType, ingredients: scaledIngredients });
+  };
+
+  const getOtherMealNames = (excludeDay: string, excludeMealTypeKey: string) => {
+    const names: string[] = [];
+    localMenu.weeklyMenu.forEach(({ day, meals }) => {
+      Object.entries(meals).forEach(([mealTypeKey, mealRecipe]) => {
+        if (day === excludeDay && mealTypeKey === excludeMealTypeKey) return;
+        if (mealRecipe) names.push(mealRecipe.name);
+      });
+    });
+    return names;
+  };
+
+  const handleReplaceMeal = async (day: string, mealTypeKey: string, meal: Omit<MealRecipe, "mealType">) => {
+    const updated: AIGeneratedMenu = JSON.parse(JSON.stringify(localMenuRef.current));
+    const dayObj = updated.weeklyMenu.find((d) => d.day === day);
+    if (!dayObj) return;
+    dayObj.meals[mealTypeKey] = meal;
+
+    localMenuRef.current = updated;
+    setLocalMenu(updated);
+    onMenuSwap(updated);
+
+    if (savedMenuId) {
+      try {
+        await fetch(`/api/menus/${savedMenuId}/replace-meal`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ day, mealType: mealTypeKey, meal }),
+        });
+      } catch (e) {
+        console.error("Replace-meal persist failed", e);
+      }
+    }
   };
 
   return (
@@ -199,6 +235,15 @@ export function ResultsStep({
           sourceDay={selectedRecipeDay}
           onRequestAuth={() => { setSelectedRecipe(null); setShowAuthModal(true); }}
           isDiabeticFriendly={formData.diets.includes("diabetic-friendly")}
+          replaceContext={{
+            isBusyDay: formData.busyDays.includes(selectedRecipeDay),
+            cuisines: formData.cuisines,
+            diets: formData.diets,
+            cookingTime: formData.cookingTime,
+            notes: formData.notes,
+            excludeNames: getOtherMealNames(selectedRecipeDay, selectedMealTypeKey),
+          }}
+          onReplace={(meal) => handleReplaceMeal(selectedRecipeDay, selectedMealTypeKey, meal)}
         />
       )}
 
