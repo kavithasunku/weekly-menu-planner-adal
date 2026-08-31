@@ -65,10 +65,15 @@ export async function POST(req: Request) {
     });
 
     if (candidates.length > 0) {
-      const pick = candidates[Math.floor(Math.random() * candidates.length)];
-      const { mealType, ...meal } = pick.recipeData as Record<string, unknown>;
-      void mealType;
-      return Response.json({ meal, source: "favorite" });
+      // Return every matching favorite (shuffled, capped) so the client can page
+      // through them for free instead of re-requesting for each "next" click.
+      const shuffled = [...candidates].sort(() => Math.random() - 0.5).slice(0, 8);
+      const meals = shuffled.map((fav) => {
+        const { mealType, ...meal } = fav.recipeData as Record<string, unknown>;
+        void mealType;
+        return meal;
+      });
+      return Response.json({ candidates: meals, source: "favorite" });
     }
   }
 
@@ -93,7 +98,7 @@ export async function POST(req: Request) {
 
     await recordGeneration(session.user.id, "gpt-4o", result.timeMs);
     return Response.json({
-      meal: result.meal,
+      candidates: [result.meal],
       source: "ai",
       _meta: { used: rateLimit.used + 1, limit: rateLimit.limit },
     });
@@ -129,7 +134,7 @@ export async function POST(req: Request) {
   });
 
   return Response.json({
-    meal: result.meal,
+    candidates: [result.meal],
     source: "ai",
     _meta: { used: newGuestUsed, limit: GUEST_FREE_LIMIT },
   });
