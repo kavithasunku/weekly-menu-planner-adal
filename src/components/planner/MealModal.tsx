@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope } from "lucide-react";
+import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope, Sparkles, RotateCcw } from "lucide-react";
 import { MealRecipe, MealType } from "@/types/planner";
 
 const MEAL_TYPE_ICONS: Record<MealType, string> = {
@@ -10,6 +10,15 @@ const MEAL_TYPE_ICONS: Record<MealType, string> = {
   dinner: "🌙",
   snacks: "🍎",
 };
+
+export interface ReplaceContext {
+  isBusyDay: boolean;
+  cuisines: string[];
+  diets: string[];
+  cookingTime: number;
+  notes: string;
+  excludeNames: string[];
+}
 
 interface Props {
   recipe: MealRecipe;
@@ -20,12 +29,22 @@ interface Props {
   sourceDay: string;
   onRequestAuth: () => void;
   isDiabeticFriendly: boolean;
+  replaceContext: ReplaceContext;
+  onReplace: (meal: Omit<MealRecipe, "mealType">) => void;
 }
 
-export function MealModal({ recipe, adults, onClose, sessionStatus, sourceMenuId, sourceDay, onRequestAuth, isDiabeticFriendly }: Props) {
+type Candidate = { meal: Omit<MealRecipe, "mealType">; source: "favorite" | "ai" };
+
+export function MealModal({
+  recipe, adults, onClose, sessionStatus, sourceMenuId, sourceDay, onRequestAuth, isDiabeticFriendly,
+  replaceContext, onReplace,
+}: Props) {
   const [favId, setFavId] = useState<string | null>(null);
   const [isSavingFav, setIsSavingFav] = useState(false);
   const [favError, setFavError] = useState(false);
+  const [isFindingReplacement, setIsFindingReplacement] = useState(false);
+  const [replaceError, setReplaceError] = useState<string | null>(null);
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
 
   const totalCalories = recipe.caloriesPerServing * adults;
   const totalProtein = recipe.protein * adults;
@@ -69,6 +88,43 @@ export function MealModal({ recipe, adults, onClose, sessionStatus, sourceMenuId
     } finally {
       setIsSavingFav(false);
     }
+  };
+
+  const findReplacement = async () => {
+    setIsFindingReplacement(true);
+    setReplaceError(null);
+    try {
+      const res = await fetch("/api/menus/replace-meal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mealType: recipe.mealType,
+          isBusyDay: replaceContext.isBusyDay,
+          cuisines: replaceContext.cuisines,
+          diets: replaceContext.diets,
+          cookingTime: replaceContext.cookingTime,
+          notes: replaceContext.notes,
+          excludeNames: [...replaceContext.excludeNames, recipe.name],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setReplaceError(data.message || "Couldn't find a replacement. Please try again.");
+        return;
+      }
+      setCandidate({ meal: data.meal, source: data.source });
+    } catch (e) {
+      console.error("Find replacement failed", e);
+      setReplaceError("Couldn't find a replacement. Please try again.");
+    } finally {
+      setIsFindingReplacement(false);
+    }
+  };
+
+  const confirmReplacement = () => {
+    if (!candidate) return;
+    onReplace(candidate.meal);
+    onClose();
   };
 
   return (
@@ -133,6 +189,58 @@ export function MealModal({ recipe, adults, onClose, sessionStatus, sourceMenuId
               <span>
                 This recipe was AI-generated with diabetic-friendly guidance, not written or verified by a nutritionist or physician. Please check with your doctor or a registered dietitian before relying on it for strict dietary management.
               </span>
+            </div>
+          )}
+
+          {/* Try Something Else */}
+          {candidate ? (
+            <div className="rounded-2xl border border-[#AF8F7C] bg-[#FAF6F1] p-4 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-medium text-[#AF8F7C] uppercase tracking-wide">
+                <Sparkles size={13} />
+                {candidate.source === "favorite" ? "From your favorites" : "New AI suggestion"}
+              </div>
+              <p className="font-serif text-[#3A332C] leading-snug">{candidate.meal.name}</p>
+              <p className="text-sm text-[#7A7168] font-light leading-relaxed">{candidate.meal.description}</p>
+              <p className="text-xs text-[#7A7168]">
+                Prep {candidate.meal.prepTime} min{candidate.meal.cookTime > 0 ? ` · Cook ${candidate.meal.cookTime} min` : ""}
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={confirmReplacement}
+                  className="flex-1 bg-[#AF8F7C] text-white text-sm font-medium py-2 rounded-full hover:bg-[#9A7B68] transition-colors"
+                >
+                  Use This Instead
+                </button>
+                <button
+                  onClick={findReplacement}
+                  disabled={isFindingReplacement}
+                  className="flex items-center gap-1 text-sm text-[#7A7168] px-3 py-2 rounded-full border border-[#EBE6DE] hover:border-[#AF8F7C]/50 transition-colors disabled:opacity-50"
+                >
+                  {isFindingReplacement ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  Try Again
+                </button>
+                <button
+                  onClick={() => { setCandidate(null); setReplaceError(null); }}
+                  className="text-sm text-[#7A7168] px-3 py-2 rounded-full hover:bg-white transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <button
+                onClick={findReplacement}
+                disabled={isFindingReplacement}
+                className="flex items-center gap-2 text-sm font-medium text-[#AF8F7C] px-4 py-2 rounded-full border border-[#AF8F7C]/30 hover:bg-[#AF8F7C]/10 transition-colors disabled:opacity-50"
+              >
+                {isFindingReplacement ? (
+                  <><Loader2 size={14} className="animate-spin" /> Finding a new idea…</>
+                ) : (
+                  <><Sparkles size={14} /> Try Something Else</>
+                )}
+              </button>
+              {replaceError && <p className="text-xs text-red-500 mt-2">{replaceError}</p>}
             </div>
           )}
 
