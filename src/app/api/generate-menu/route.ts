@@ -4,28 +4,27 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { buildMenuGenerationPrompt } from "@/lib/prompts/menu-generation";
-import { checkGenerationRateLimit, recordGeneration } from "@/lib/rate-limit";
+import { checkGenerationRateLimit, recordGeneration, GUEST_FREE_LIMIT } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
-const FREE_GUEST_COOKIE = "free_gen_used";
+const GUEST_GENERATION_COOKIE = "free_gen_count";
 
 export async function POST(req: Request) {
   const session = await auth();
   const cookieStore = await cookies();
 
-  // ── Authenticated user: DB-based rate limit ───────────────────────────────
+  // ── Authenticated user: lifetime free-generation limit (admins bypass) ────
   if (session?.user?.id) {
-    const rateLimit = await checkGenerationRateLimit(session.user.id);
+    const rateLimit = await checkGenerationRateLimit(session.user.id, session.user.email);
     if (!rateLimit.allowed) {
       return Response.json(
         {
-          error: "Daily limit reached",
+          error: "Free limit reached",
           type: "rate_limit",
-          message: `You've used all ${rateLimit.limit} menu generations for today. Resets at midnight.`,
+          message: `You've used all ${rateLimit.limit} free menu generations. Upgrade to keep planning — coming soon!`,
           used: rateLimit.used,
           limit: rateLimit.limit,
-          resetAt: rateLimit.resetAt,
         },
         { status: 429 }
       );
@@ -42,15 +41,39 @@ export async function POST(req: Request) {
     });
   }
 
-  // ── Guest user: unlimited for now (hackathon demo) ───────────────────────
+  // ── Guest user: same lifetime limit as signed-in users, no sign-in required ──
+  // Sign-in is only needed to save menus/recipes, not to generate them.
+  const guestUsed = parseInt(cookieStore.get(GUEST_GENERATION_COOKIE)?.value || "0", 10) || 0;
+  if (guestUsed >= GUEST_FREE_LIMIT) {
+    return Response.json(
+      {
+        error: "Free limit reached",
+        type: "rate_limit",
+        message: `You've used all ${GUEST_FREE_LIMIT} free menu generations. Upgrade to keep planning — coming soon!`,
+        used: guestUsed,
+        limit: GUEST_FREE_LIMIT,
+      },
+      { status: 429 }
+    );
+  }
+
   const result = await generate(req);
   if (result.error) return result.response;
 
   await recordGeneration(null, "gpt-4o", result.timeMs);
 
+  const newGuestUsed = guestUsed + 1;
+  cookieStore.set(GUEST_GENERATION_COOKIE, String(newGuestUsed), {
+    maxAge: 60 * 60 * 24 * 365,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+
   return Response.json({
     ...result.menu,
-    _meta: { guest: true },
+    _meta: { guest: true, used: newGuestUsed, limit: GUEST_FREE_LIMIT },
   });
 }
 

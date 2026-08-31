@@ -1,0 +1,32 @@
+name: Deployment Smoke Test
+
+# Fires whenever Vercel's GitHub integration marks a deployment (preview or
+# production) as ready. No secrets needed — these are two free requests
+# against the public deployment URL, both expected to fail fast (429/401)
+# before ever reaching the database or OpenAI.
+on:
+  deployment_status:
+
+jobs:
+  smoke-test:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guest over the free-generation limit gets 429 (no AI call)
+        run: |
+          URL="${{ github.event.deployment_status.target_url }}"
+          STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" -X POST "$URL/api/generate-menu" \
+            -H "Content-Type: application/json" \
+            -b "free_gen_count=99" \
+            -d '{"adults":2,"kids":0,"kidsAges":[],"meals":["dinner"],"cuisines":["italian"],"diets":["none"],"busyDays":[],"cookingTime":30,"notes":""}')
+          echo "Response body:"; cat /tmp/resp.json; echo
+          echo "Status: $STATUS"
+          test "$STATUS" = "429"
+
+      - name: Unauthenticated menus request gets 401 (DB/auth stack reachable)
+        run: |
+          URL="${{ github.event.deployment_status.target_url }}"
+          STATUS=$(curl -s -o /tmp/resp2.json -w "%{http_code}" "$URL/api/menus")
+          echo "Response body:"; cat /tmp/resp2.json; echo
+          echo "Status: $STATUS"
+          test "$STATUS" = "401"

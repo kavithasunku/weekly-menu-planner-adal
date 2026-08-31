@@ -35,12 +35,12 @@ export default function PlannerPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<{
-    type: "rate_limit" | "sign_in_required" | "generic";
+    type: "rate_limit" | "generic";
     message: string;
-    resetAt?: Date | null;
     used?: number;
     limit?: number;
   } | null>(null);
+  const [usageWarning, setUsageWarning] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -156,6 +156,7 @@ export default function PlannerPage() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setGenerateError(null);
+    setUsageWarning(null);
     try {
       const res = await fetch("/api/generate-menu", {
         method: "POST",
@@ -166,23 +167,25 @@ export default function PlannerPage() {
       if (res.status === 429) {
         setGenerateError({
           type: "rate_limit",
-          message: data.message || "Daily generation limit reached. Please try again tomorrow.",
-          resetAt: data.resetAt ? new Date(data.resetAt) : null,
+          message: data.message || "You've used all your free menu generations.",
           used: data.used,
           limit: data.limit,
-        });
-        return;
-      }
-      if (res.status === 401 && data.type === "sign_in_required") {
-        setGenerateError({
-          type: "sign_in_required",
-          message: data.message || "Sign in to generate more menus.",
         });
         return;
       }
       if (!res.ok) throw new Error(data.error || "Failed to generate menu");
       setGeneratedMenu(data);
       setIsComplete(true);
+
+      const { used, limit } = data._meta || {};
+      if (typeof used === "number" && typeof limit === "number") {
+        const remaining = limit - used;
+        if (remaining === 0) {
+          setUsageWarning("This was your last free generation. Upgrade to keep planning — coming soon!");
+        } else if (remaining > 0 && remaining <= 2) {
+          setUsageWarning(`Only ${remaining} more free generation${remaining === 1 ? "" : "s"} allowed.`);
+        }
+      }
     } catch (error) {
       console.error(error);
       setGenerateError({ type: "generic", message: "Failed to generate menu. Please try again." });
@@ -361,40 +364,40 @@ export default function PlannerPage() {
         {/* Rate Limit / Error Banner */}
         {generateError && (
           <div className={`rounded-2xl p-5 mb-6 flex items-start gap-4 border ${
-            generateError.type === "sign_in_required"
-              ? "bg-[#F9F5F0] border-[#AF8F7C] text-[#3A332C]"
-              : generateError.type === "rate_limit"
+            generateError.type === "rate_limit"
               ? "bg-amber-50 border-amber-200 text-amber-800"
               : "bg-red-50 border-red-200 text-red-800"
           }`}>
             <span className="text-2xl flex-shrink-0">
-              {generateError.type === "sign_in_required" ? "✨" : generateError.type === "rate_limit" ? "⏳" : "⚠️"}
+              {generateError.type === "rate_limit" ? "⏳" : "⚠️"}
             </span>
             <div className="flex-1">
               <p className="font-semibold mb-1">
-                {generateError.type === "sign_in_required"
-                  ? "Your free menu is ready!"
-                  : generateError.type === "rate_limit"
-                  ? "Daily limit reached"
-                  : "Something went wrong"}
+                {generateError.type === "rate_limit" ? "Free limit reached" : "Something went wrong"}
               </p>
               <p className="text-sm">{generateError.message}</p>
-              {generateError.type === "rate_limit" && generateError.resetAt && (
+              {generateError.type === "rate_limit" && generateError.limit !== undefined && (
                 <p className="text-xs mt-2 opacity-70">
-                  Resets at midnight · {generateError.used}/{generateError.limit} generations used today
+                  {generateError.used}/{generateError.limit} free generations used
                 </p>
-              )}
-              {generateError.type === "sign_in_required" && (
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 mt-3 bg-[#AF8F7C] text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-[#9A7B68] transition-colors"
-                >
-                  Sign in for more →
-                </Link>
               )}
             </div>
             <button
               onClick={() => setGenerateError(null)}
+              className="text-current opacity-50 hover:opacity-100 transition-opacity text-lg leading-none"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Usage Warning (non-blocking, shown after a successful generation) */}
+        {!generateError && usageWarning && (
+          <div className="rounded-2xl p-4 mb-6 flex items-start gap-3 border bg-amber-50 border-amber-200 text-amber-800">
+            <span className="text-lg flex-shrink-0">💡</span>
+            <p className="text-sm flex-1">{usageWarning}</p>
+            <button
+              onClick={() => setUsageWarning(null)}
               className="text-current opacity-50 hover:opacity-100 transition-opacity text-lg leading-none"
             >
               ✕

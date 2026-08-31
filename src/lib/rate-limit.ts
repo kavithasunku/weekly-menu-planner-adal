@@ -1,35 +1,44 @@
 import { prisma } from "@/lib/prisma";
 
-const DAILY_GENERATION_LIMIT = 3;
+const LIFETIME_FREE_LIMIT = 7;
+export const GUEST_FREE_LIMIT = LIFETIME_FREE_LIMIT;
+
+function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const admins = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return admins.includes(email.toLowerCase());
+}
 
 /**
- * Check if a user has exceeded their daily menu generation limit.
+ * Check if a user has exceeded their lifetime free menu generation limit.
+ * Admins (see ADMIN_EMAILS) always bypass the limit.
  * Uses MenuGenerationHistory table (already in schema) as a simple counter.
  */
-export async function checkGenerationRateLimit(userId: string): Promise<{
+export async function checkGenerationRateLimit(
+  userId: string,
+  email?: string | null
+): Promise<{
   allowed: boolean;
   used: number;
   limit: number;
-  resetAt: Date;
+  isAdmin: boolean;
 }> {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const tomorrow = new Date(startOfDay);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
   const used = await prisma.menuGenerationHistory.count({
-    where: {
-      userId,
-      createdAt: { gte: startOfDay },
-    },
+    where: { userId },
   });
 
+  if (isAdminEmail(email)) {
+    return { allowed: true, used, limit: LIFETIME_FREE_LIMIT, isAdmin: true };
+  }
+
   return {
-    allowed: used < DAILY_GENERATION_LIMIT,
+    allowed: used < LIFETIME_FREE_LIMIT,
     used,
-    limit: DAILY_GENERATION_LIMIT,
-    resetAt: tomorrow,
+    limit: LIFETIME_FREE_LIMIT,
+    isAdmin: false,
   };
 }
 
