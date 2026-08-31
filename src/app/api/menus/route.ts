@@ -40,6 +40,7 @@ export async function GET() {
         id: true,
         name: true,
         isFavorite: true,
+        isCurrent: true,
         createdAt: true,
         weekStartDate: true,
         weekEndDate: true,
@@ -69,7 +70,12 @@ export async function POST(req: Request) {
 
     type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
     const menu = await prisma.$transaction(async (tx: TxClient) => {
-      // 1. Save the menu
+      // 1. A newly saved menu becomes the user's current one; demote any others.
+      await tx.savedMenu.updateMany({
+        where: { userId, isCurrent: true },
+        data: { isCurrent: false },
+      });
+
       const savedMenu = await tx.savedMenu.create({
         data: {
           userId,
@@ -79,6 +85,7 @@ export async function POST(req: Request) {
           weekStartDate: validatedData.weekStartDate ? new Date(validatedData.weekStartDate) : null,
           weekEndDate: validatedData.weekEndDate ? new Date(validatedData.weekEndDate) : null,
           isFavorite: validatedData.isFavorite || false,
+          isCurrent: true,
         },
       });
 

@@ -3,25 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  profile       Profile?
-  preferences   UserPreference?
-  menus         SavedMenu[]
-  groceryLists  GroceryList[]
-  favorites     FavoriteRecipe[]
+  id              String           @id @default(cuid())
+  name            String?
+  email           String?          @unique
+  emailVerified   DateTime?
+  image           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  accounts        Account[]
+  favorites       FavoriteRecipe[]
+  groceryLists    GroceryList[]
+  profile         Profile?
+  menus           SavedMenu[]
+  sessions        Session[]
   shoppingExports ShoppingExport[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  preferences     UserPreference?
 }
 
 model Account {
@@ -30,15 +30,14 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -60,22 +59,21 @@ model VerificationToken {
 }
 
 model Profile {
-  id              String   @id @default(cuid())
-  userId          String   @unique
+  id              String    @id @default(cuid())
+  userId          String    @unique
   name            String?
-  gender          String?  
-  location        String?  
-  defaultAdults   Int      @default(2)
-  defaultKids     Int      @default(0)
-  defaultMeals    String[] @default(["dinner"])
-  defaultCuisines String[] @default([])
-  defaultDiet     String   @default("none")
+  gender          String?
+  location        String?
+  defaultAdults   Int       @default(2)
+  defaultKids     Int       @default(0)
+  defaultMeals    String[]  @default(["dinner"])
+  defaultCuisines String[]  @default([])
+  defaultDiet     String    @default("none")
   avatarUrl       String?
   lastLoginAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserPreference {
@@ -86,85 +84,85 @@ model UserPreference {
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SavedMenu {
-  id              String   @id @default(cuid())
+  id              String           @id @default(cuid())
   userId          String
   name            String
   plannerState    Json
   generatedMenu   Json
-  isFavorite      Boolean  @default(false)
+  isFavorite      Boolean          @default(false)
+  isCurrent       Boolean          @default(false)
   weekStartDate   DateTime?
   weekEndDate     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  groceryLists    GroceryList[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   favoriteRecipes FavoriteRecipe[]
+  groceryLists    GroceryList[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   shoppingExports ShoppingExport[]
-  
+
   @@index([userId])
   @@index([userId, isFavorite])
+  @@index([userId, isCurrent])
+  @@index([generatedMenu], map: "idx_menu_generated_gin", type: Gin)
+  @@index([plannerState], map: "idx_menu_planner_gin", type: Gin)
 }
 
 model GroceryList {
-  id           String   @id @default(cuid())
-  savedMenuId  String?
-  userId       String
-  items        Json     @default("[]")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  savedMenu    SavedMenu? @relation(fields: [savedMenuId], references: [id], onDelete: Cascade)
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id          String     @id @default(cuid())
+  savedMenuId String?
+  userId      String
+  items       Json       @default("[]")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  savedMenu   SavedMenu? @relation(fields: [savedMenuId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
+  @@index([items], map: "idx_grocery_items_gin", type: Gin)
 }
 
 model FavoriteRecipe {
-  id             String   @id @default(cuid())
+  id             String     @id @default(cuid())
   userId         String
   recipeName     String
   recipeData     Json
   sourceMenuId   String?
   sourceDay      String?
   sourceMealType String?
-  createdAt      DateTime @default(now())
-  
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceMenu SavedMenu? @relation(fields: [sourceMenuId], references: [id], onDelete: SetNull)
-  
+  createdAt      DateTime   @default(now())
+  sourceMenu     SavedMenu? @relation(fields: [sourceMenuId], references: [id])
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
 model MenuGenerationHistory {
-  id              String   @id @default(cuid())
-  userId          String?
-  sessionId       String?
-  plannerState    Json?
+  id               String   @id @default(cuid())
+  userId           String?
+  sessionId        String?
+  plannerState     Json?
   generationTimeMs Int?
-  modelUsed       String?
-  createdAt       DateTime @default(now())
-  
+  modelUsed        String?
+  createdAt        DateTime @default(now())
+
   @@index([userId])
   @@index([sessionId])
 }
 
 model ShoppingExport {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   userId    String
   menuId    String?
-  provider  String   @default("instacart")
+  provider  String     @default("instacart")
   ipAddress String?
   userAgent String?
-  createdAt DateTime @default(now())
-
+  createdAt DateTime   @default(now())
+  savedMenu SavedMenu? @relation(fields: [menuId], references: [id])
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  savedMenu SavedMenu? @relation(fields: [menuId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, createdAt])

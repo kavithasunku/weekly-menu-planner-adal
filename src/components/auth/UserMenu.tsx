@@ -63,12 +63,12 @@ export function UserMenu() {
           </div>
           <div className="p-2">
             <Link
-              href="/planner"
+              href="/menus"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-[#3A332C] hover:bg-[#F5F2EB] rounded-xl transition-colors"
             >
               <User size={16} className="text-[#AF8F7C]" />
-              My Plans
+              My Menus
             </Link>
             <button
               onClick={() => {

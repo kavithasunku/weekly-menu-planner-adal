@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { ChefHat, ArrowRight, ArrowLeft, Users, Clock, Utensils, Check, Sparkles, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { UserMenu } from "@/components/auth/UserMenu";
@@ -30,8 +31,11 @@ const DEFAULT_FORM: PlannerState = {
   notes: "",
 };
 
-export default function PlannerPage() {
+function PlannerPageInner() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const menuId = searchParams.get("menuId");
+  const [loadedMenuId, setLoadedMenuId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<{
@@ -92,6 +96,25 @@ export default function PlannerPage() {
       console.error("Failed to parse pendingMenu", e);
     }
   }, [status, isComplete, isSaving, saveSuccess]);
+
+  // Load a saved menu directly when navigated here with ?menuId=<id> (e.g. from My Menus)
+  useEffect(() => {
+    if (!menuId || status !== "authenticated" || loadedMenuId === menuId) return;
+
+    fetch(`/api/menus/${menuId}`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
+        setFormData(data.plannerState);
+        setGeneratedMenu(data.generatedMenu);
+        setIsFavorite(data.isFavorite || false);
+        setSavedMenuId(data.id);
+        setSaveSuccess(true);
+        setIsComplete(true);
+        setLoadedMenuId(menuId);
+      })
+      .catch((e) => console.error("Failed to load menu", e));
+  }, [menuId, status, loadedMenuId]);
 
   // ── Form helpers ──────────────────────────────────────────────────────────
 
@@ -440,5 +463,13 @@ export default function PlannerPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PlannerPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlannerPageInner />
+    </Suspense>
   );
 }

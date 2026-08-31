@@ -6,6 +6,7 @@ import { z } from "zod";
 const updateMenuSchema = z.object({
   name: z.string().optional(),
   isFavorite: z.boolean().optional(),
+  isCurrent: z.boolean().optional(),
 });
 
 /**
@@ -52,12 +53,34 @@ export async function PATCH(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const userId = session.user.id;
 
   const { id } = await params;
 
   try {
     const body = await req.json();
     const validatedData = updateMenuSchema.parse(body);
+
+    // Setting a menu as current is mutually exclusive: demote any other
+    // current menu for this user first, in the same transaction.
+    if (validatedData.isCurrent === true) {
+      type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+      const menu = await prisma.$transaction(async (tx: TxClient) => {
+        await tx.savedMenu.updateMany({
+          where: { userId, isCurrent: true, id: { not: id } },
+          data: { isCurrent: false },
+        });
+        return tx.savedMenu.update({
+          where: { id, userId },
+          data: {
+            ...(validatedData.name !== undefined && { name: validatedData.name }),
+            ...(validatedData.isFavorite !== undefined && { isFavorite: validatedData.isFavorite }),
+            isCurrent: true,
+          },
+        });
+      });
+      return NextResponse.json(menu);
+    }
 
     const menu = await prisma.savedMenu.update({
       where: {
@@ -67,6 +90,7 @@ export async function PATCH(
       data: {
         ...(validatedData.name !== undefined && { name: validatedData.name }),
         ...(validatedData.isFavorite !== undefined && { isFavorite: validatedData.isFavorite }),
+        ...(validatedData.isCurrent !== undefined && { isCurrent: validatedData.isCurrent }),
       },
     });
 
