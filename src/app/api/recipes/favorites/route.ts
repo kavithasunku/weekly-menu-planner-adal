@@ -9,6 +9,8 @@ const saveFavoriteSchema = z.object({
   sourceMenuId: z.string().optional().nullable(),
   sourceDay: z.string().optional().nullable(),
   sourceMealType: z.string().optional().nullable(),
+  cuisines: z.array(z.string()).optional(),
+  diets: z.array(z.string()).optional(),
 });
 
 /**
@@ -54,6 +56,8 @@ export async function POST(req: Request) {
         sourceMenuId: data.sourceMenuId ?? null,
         sourceDay: data.sourceDay ?? null,
         sourceMealType: data.sourceMealType ?? null,
+        cuisines: data.cuisines ?? [],
+        diets: data.diets ?? [],
       },
     });
 

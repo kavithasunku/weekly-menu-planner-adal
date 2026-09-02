@@ -133,6 +133,8 @@ model FavoriteRecipe {
   sourceMenuId   String?
   sourceDay      String?
   sourceMealType String?
+  cuisines       String[]   @default([])
+  diets          String[]   @default([])
   createdAt      DateTime   @default(now())
   sourceMenu     SavedMenu? @relation(fields: [sourceMenuId], references: [id])
   user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
