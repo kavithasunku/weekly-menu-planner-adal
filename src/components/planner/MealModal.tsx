@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope, Sparkles, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope, Shuffle, ChevronLeft, ChevronRight } from "lucide-react";
 import { MealRecipe, MealType } from "@/types/planner";
 
 const MEAL_TYPE_ICONS: Record<MealType, string> = {
@@ -16,7 +16,6 @@ export interface ReplaceContext {
   cuisines: string[];
   diets: string[];
   cookingTime: number;
-  notes: string;
   excludeNames: string[];
 }
 
@@ -33,7 +32,7 @@ interface Props {
   onReplace: (meal: Omit<MealRecipe, "mealType">) => void;
 }
 
-type ReplaceResult = { candidates: Omit<MealRecipe, "mealType">[]; source: "favorite" | "ai" };
+type ReplaceResult = { candidates: Omit<MealRecipe, "mealType">[] };
 
 export function MealModal({
   recipe, adults, onClose, sessionStatus, sourceMenuId, sourceDay, onRequestAuth, isDiabeticFriendly,
@@ -47,6 +46,7 @@ export function MealModal({
   const [result, setResult] = useState<ReplaceResult | null>(null);
   const [candidateIndex, setCandidateIndex] = useState(0);
   const candidate = result?.candidates[candidateIndex] ?? null;
+  const hasSearched = result !== null;
 
   const totalCalories = recipe.caloriesPerServing * adults;
   const totalProtein = recipe.protein * adults;
@@ -75,6 +75,8 @@ export function MealModal({
             sourceMenuId,
             sourceDay,
             sourceMealType: recipe.mealType,
+            cuisines: replaceContext.cuisines,
+            diets: replaceContext.diets,
           }),
         });
         if (res.ok) {
@@ -92,7 +94,11 @@ export function MealModal({
     }
   };
 
-  const findReplacement = async () => {
+  const fetchFromFavorites = async () => {
+    if (sessionStatus !== "authenticated") {
+      onRequestAuth();
+      return;
+    }
     setIsFindingReplacement(true);
     setReplaceError(null);
     try {
@@ -105,20 +111,19 @@ export function MealModal({
           cuisines: replaceContext.cuisines,
           diets: replaceContext.diets,
           cookingTime: replaceContext.cookingTime,
-          notes: replaceContext.notes,
           excludeNames: [...replaceContext.excludeNames, recipe.name],
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setReplaceError(data.message || "Couldn't find a replacement. Please try again.");
+        setReplaceError(data.error || "Couldn't reach your favorites. Please try again.");
         return;
       }
-      setResult({ candidates: data.candidates, source: data.source });
+      setResult({ candidates: data.candidates });
       setCandidateIndex(0);
     } catch (e) {
-      console.error("Find replacement failed", e);
-      setReplaceError("Couldn't find a replacement. Please try again.");
+      console.error("Fetch from favorites failed", e);
+      setReplaceError("Couldn't reach your favorites. Please try again.");
     } finally {
       setIsFindingReplacement(false);
     }
@@ -200,15 +205,15 @@ export function MealModal({
             </div>
           )}
 
-          {/* Try Something Else */}
-          {candidate && result ? (
+          {/* Fetch from Favorites */}
+          {candidate ? (
             <div className="rounded-2xl border border-[#AF8F7C] bg-[#FAF6F1] p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-medium text-[#AF8F7C] uppercase tracking-wide">
-                  <Sparkles size={13} />
-                  {result.source === "favorite" ? "From your favorites" : "New AI suggestion"}
+                  <Heart size={13} />
+                  From your favorites
                 </div>
-                {result.candidates.length > 1 && (
+                {result && result.candidates.length > 1 && (
                   <div className="flex items-center gap-1 text-xs text-[#7A7168]">
                     <button
                       onClick={() => showNextCandidate(-1)}
@@ -240,16 +245,6 @@ export function MealModal({
                 >
                   Use This Instead
                 </button>
-                {result.candidates.length === 1 && (
-                  <button
-                    onClick={findReplacement}
-                    disabled={isFindingReplacement}
-                    className="flex items-center gap-1 text-sm text-[#7A7168] px-3 py-2 rounded-full border border-[#EBE6DE] hover:border-[#AF8F7C]/50 transition-colors disabled:opacity-50"
-                  >
-                    {isFindingReplacement ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-                    Try Again
-                  </button>
-                )}
                 <button
                   onClick={() => { setResult(null); setReplaceError(null); }}
                   className="text-sm text-[#7A7168] px-3 py-2 rounded-full hover:bg-white transition-colors"
@@ -261,16 +256,21 @@ export function MealModal({
           ) : (
             <div>
               <button
-                onClick={findReplacement}
+                onClick={fetchFromFavorites}
                 disabled={isFindingReplacement}
                 className="flex items-center gap-2 text-sm font-medium text-[#AF8F7C] px-4 py-2 rounded-full border border-[#AF8F7C]/30 hover:bg-[#AF8F7C]/10 transition-colors disabled:opacity-50"
               >
                 {isFindingReplacement ? (
-                  <><Loader2 size={14} className="animate-spin" /> Finding a new idea…</>
+                  <><Loader2 size={14} className="animate-spin" /> Checking your favorites…</>
                 ) : (
-                  <><Sparkles size={14} /> Try Something Else</>
+                  <><Shuffle size={14} /> Fetch from Favorites</>
                 )}
               </button>
+              {hasSearched && !candidate && !replaceError && (
+                <p className="text-xs text-[#7A7168] mt-2">
+                  No saved favorites match this meal&rsquo;s cuisine, diet, or time budget yet.
+                </p>
+              )}
               {replaceError && <p className="text-xs text-red-500 mt-2">{replaceError}</p>}
             </div>
           )}

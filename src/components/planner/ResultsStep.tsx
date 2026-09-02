@@ -240,7 +240,6 @@ export function ResultsStep({
             cuisines: formData.cuisines,
             diets: formData.diets,
             cookingTime: formData.cookingTime,
-            notes: formData.notes,
             excludeNames: getOtherMealNames(selectedRecipeDay, selectedMealTypeKey),
           }}
           onReplace={(meal) => handleReplaceMeal(selectedRecipeDay, selectedMealTypeKey, meal)}
