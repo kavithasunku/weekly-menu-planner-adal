@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope, Sparkles, RotateCcw } from "lucide-react";
+import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope, Sparkles, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { MealRecipe, MealType } from "@/types/planner";
 
 const MEAL_TYPE_ICONS: Record<MealType, string> = {
@@ -33,7 +33,7 @@ interface Props {
   onReplace: (meal: Omit<MealRecipe, "mealType">) => void;
 }
 
-type Candidate = { meal: Omit<MealRecipe, "mealType">; source: "favorite" | "ai" };
+type ReplaceResult = { candidates: Omit<MealRecipe, "mealType">[]; source: "favorite" | "ai" };
 
 export function MealModal({
   recipe, adults, onClose, sessionStatus, sourceMenuId, sourceDay, onRequestAuth, isDiabeticFriendly,
@@ -44,7 +44,9 @@ export function MealModal({
   const [favError, setFavError] = useState(false);
   const [isFindingReplacement, setIsFindingReplacement] = useState(false);
   const [replaceError, setReplaceError] = useState<string | null>(null);
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [result, setResult] = useState<ReplaceResult | null>(null);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const candidate = result?.candidates[candidateIndex] ?? null;
 
   const totalCalories = recipe.caloriesPerServing * adults;
   const totalProtein = recipe.protein * adults;
@@ -112,7 +114,8 @@ export function MealModal({
         setReplaceError(data.message || "Couldn't find a replacement. Please try again.");
         return;
       }
-      setCandidate({ meal: data.meal, source: data.source });
+      setResult({ candidates: data.candidates, source: data.source });
+      setCandidateIndex(0);
     } catch (e) {
       console.error("Find replacement failed", e);
       setReplaceError("Couldn't find a replacement. Please try again.");
@@ -121,9 +124,14 @@ export function MealModal({
     }
   };
 
+  const showNextCandidate = (direction: 1 | -1) => {
+    if (!result) return;
+    setCandidateIndex((i) => (i + direction + result.candidates.length) % result.candidates.length);
+  };
+
   const confirmReplacement = () => {
     if (!candidate) return;
-    onReplace(candidate.meal);
+    onReplace(candidate);
     onClose();
   };
 
@@ -193,16 +201,37 @@ export function MealModal({
           )}
 
           {/* Try Something Else */}
-          {candidate ? (
+          {candidate && result ? (
             <div className="rounded-2xl border border-[#AF8F7C] bg-[#FAF6F1] p-4 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-medium text-[#AF8F7C] uppercase tracking-wide">
-                <Sparkles size={13} />
-                {candidate.source === "favorite" ? "From your favorites" : "New AI suggestion"}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-medium text-[#AF8F7C] uppercase tracking-wide">
+                  <Sparkles size={13} />
+                  {result.source === "favorite" ? "From your favorites" : "New AI suggestion"}
+                </div>
+                {result.candidates.length > 1 && (
+                  <div className="flex items-center gap-1 text-xs text-[#7A7168]">
+                    <button
+                      onClick={() => showNextCandidate(-1)}
+                      className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white transition-colors"
+                      title="Previous"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    {candidateIndex + 1} of {result.candidates.length}
+                    <button
+                      onClick={() => showNextCandidate(1)}
+                      className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white transition-colors"
+                      title="Next"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
-              <p className="font-serif text-[#3A332C] leading-snug">{candidate.meal.name}</p>
-              <p className="text-sm text-[#7A7168] font-light leading-relaxed">{candidate.meal.description}</p>
+              <p className="font-serif text-[#3A332C] leading-snug">{candidate.name}</p>
+              <p className="text-sm text-[#7A7168] font-light leading-relaxed">{candidate.description}</p>
               <p className="text-xs text-[#7A7168]">
-                Prep {candidate.meal.prepTime} min{candidate.meal.cookTime > 0 ? ` · Cook ${candidate.meal.cookTime} min` : ""}
+                Prep {candidate.prepTime} min{candidate.cookTime > 0 ? ` · Cook ${candidate.cookTime} min` : ""}
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <button
@@ -211,16 +240,18 @@ export function MealModal({
                 >
                   Use This Instead
                 </button>
+                {result.candidates.length === 1 && (
+                  <button
+                    onClick={findReplacement}
+                    disabled={isFindingReplacement}
+                    className="flex items-center gap-1 text-sm text-[#7A7168] px-3 py-2 rounded-full border border-[#EBE6DE] hover:border-[#AF8F7C]/50 transition-colors disabled:opacity-50"
+                  >
+                    {isFindingReplacement ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                    Try Again
+                  </button>
+                )}
                 <button
-                  onClick={findReplacement}
-                  disabled={isFindingReplacement}
-                  className="flex items-center gap-1 text-sm text-[#7A7168] px-3 py-2 rounded-full border border-[#EBE6DE] hover:border-[#AF8F7C]/50 transition-colors disabled:opacity-50"
-                >
-                  {isFindingReplacement ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-                  Try Again
-                </button>
-                <button
-                  onClick={() => { setCandidate(null); setReplaceError(null); }}
+                  onClick={() => { setResult(null); setReplaceError(null); }}
                   className="text-sm text-[#7A7168] px-3 py-2 rounded-full hover:bg-white transition-colors"
                 >
                   Cancel
