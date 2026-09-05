@@ -125,6 +125,29 @@ const SAMPLE_MENU = {
       ],
     },
   ],
+  prepPlan: [
+    {
+      category: "Chop & Prep",
+      tasks: [
+        { task: "Wash and chop onions, garlic, and ginger for the week — store airtight in the fridge", timeMinutes: 15, suggestedDay: "Sunday" },
+        { task: "Wash and trim asparagus and broccoli", timeMinutes: 10, suggestedDay: "Sunday" },
+      ],
+    },
+    {
+      category: "Marinate",
+      tasks: [
+        { task: "Marinate lamb shoulder for the tagine", timeMinutes: 10, suggestedDay: "Friday night" },
+        { task: "Marinate chicken thighs in lemon and garlic", timeMinutes: 10, suggestedDay: "Tuesday night" },
+      ],
+    },
+    {
+      category: "Cook Ahead",
+      tasks: [
+        { task: "Cook a batch of mixed grains (farro/quinoa) for grain bowls and sides", timeMinutes: 20, suggestedDay: "Sunday" },
+        { task: "Roast a tray of root vegetables to reheat through the week", timeMinutes: 30, suggestedDay: "Sunday" },
+      ],
+    },
+  ],
 };
 
 const MEALS = ["Breakfast", "Lunch", "Dinner"] as const;
@@ -132,6 +155,13 @@ const MEAL_ICONS: Record<string, string> = {
   Breakfast: "🌅",
   Lunch: "☀️",
   Dinner: "🌙",
+};
+const PREP_CATEGORY_ICONS: Record<string, string> = {
+  "Chop & Prep": "🔪",
+  "Marinate": "🧂",
+  "Soak & Sprout": "🫘",
+  "Ferment": "🫙",
+  "Cook Ahead": "🍲",
 };
 
 export default function SamplePlanPage() {
@@ -221,6 +251,38 @@ export default function SamplePlanPage() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Prep plan */}
+        <div className="p-6 bg-[#FDFBF7] rounded-2xl border border-[#EBE6DE]">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl">📋</span>
+            <h2 className="text-lg font-serif text-[#3A332C]">Weekly Prep Plan</h2>
+            <span className="ml-auto text-xs text-[#B8B0A4] hidden sm:inline">Do these ahead, cook faster all week</span>
+          </div>
+          <p className="text-xs text-[#7A7168] mb-6 sm:hidden">Do these ahead, cook faster all week</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+            {SAMPLE_MENU.prepPlan.map((group, idx) => (
+              <div key={idx} className="p-3 bg-white rounded-xl border border-[#EBE6DE]">
+                <span className="text-xs font-semibold text-[#AF8F7C] uppercase tracking-wider">
+                  {PREP_CATEGORY_ICONS[group.category] ?? "📝"} {group.category}
+                </span>
+                <ul className="mt-2.5 space-y-2.5 text-[#7A7168]">
+                  {group.tasks.map((task, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#AF8F7C] flex-shrink-0 mt-1.5" />
+                      <span>
+                        <span className="text-[#3A332C]">{task.task}</span>
+                        <span className="block text-[10px] text-[#B8B0A4] mt-0.5">
+                          {task.suggestedDay} · {task.timeMinutes} min
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Grocery list */}

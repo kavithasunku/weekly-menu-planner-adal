@@ -28,6 +28,14 @@ export interface MealRecipe {
   steps: string[];
 }
 
+export type PrepCategory = "Chop & Prep" | "Marinate" | "Soak & Sprout" | "Ferment" | "Cook Ahead";
+
+export interface PrepTask {
+  task: string;
+  timeMinutes: number;
+  suggestedDay: string;
+}
+
 export interface AIGeneratedMenu {
   weeklyMenu: {
     day: string;
@@ -36,5 +44,10 @@ export interface AIGeneratedMenu {
   groceryList: {
     category: string;
     items: { amount: string; item: string }[];
+  }[];
+  // Optional: older saved menus (generated before this feature) won't have it.
+  prepPlan?: {
+    category: PrepCategory;
+    tasks: PrepTask[];
   }[];
 }

@@ -115,6 +115,18 @@ async function generate(req: Request): Promise<
             items: z.array(z.object({ amount: z.string(), item: z.string() })),
           })
         ),
+        prepPlan: z.array(
+          z.object({
+            category: z.enum(["Chop & Prep", "Marinate", "Soak & Sprout", "Ferment", "Cook Ahead"]),
+            tasks: z.array(
+              z.object({
+                task: z.string(),
+                timeMinutes: z.number(),
+                suggestedDay: z.string(),
+              })
+            ),
+          })
+        ),
       }),
       prompt: buildMenuGenerationPrompt(formData),
     });
