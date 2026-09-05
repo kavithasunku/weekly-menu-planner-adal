@@ -4,9 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import {
   Check, Sparkles, X, Loader2, Heart, GripVertical,
-  AlertTriangle, ArrowLeftRight, Timer,
+  AlertTriangle, ArrowLeftRight, Timer, CheckCircle2, Circle,
 } from "lucide-react";
-import { MealType, PlannerState, AIGeneratedMenu, MealRecipe } from "@/types/planner";
+import { MealType, PlannerState, AIGeneratedMenu, MealRecipe, PrepCategory } from "@/types/planner";
 import { MealModal } from "./MealModal";
 
 interface DragItem {
@@ -17,6 +17,13 @@ interface DragItem {
 const MEAL_ORDER: Record<MealType, number> = { breakfast: 0, lunch: 1, dinner: 2, snacks: 3 };
 const MEAL_TYPE_ICONS: Record<string, string> = {
   Breakfast: "🌅", Lunch: "☀️", Dinner: "🌙", Snacks: "🍎",
+};
+const PREP_CATEGORY_ICONS: Record<PrepCategory, string> = {
+  "Chop & Prep": "🔪",
+  "Marinate": "🧂",
+  "Soak & Sprout": "🫘",
+  "Ferment": "🫙",
+  "Cook Ahead": "🍲",
 };
 
 interface Props {
@@ -58,6 +65,7 @@ export function ResultsStep({
   const [isInstacartLoading, setIsInstacartLoading] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapSuccess, setSwapSuccess] = useState(false);
+  const [checkedPrepTasks, setCheckedPrepTasks] = useState<Record<string, boolean>>({});
 
   const dragItem = useRef<DragItem | null>(null);
   const isDragging = useRef(false);
@@ -157,6 +165,15 @@ export function ResultsStep({
       setIsInstacartLoading(false);
     }
   };
+
+  const togglePrepTask = (key: string) => {
+    setCheckedPrepTasks((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const totalPrepMinutes = (localMenu.prepPlan ?? []).reduce(
+    (sum, group) => sum + group.tasks.reduce((s, t) => s + t.timeMinutes, 0),
+    0
+  );
 
   const handleSave = () => {
     if (sessionStatus === "unauthenticated") {
@@ -400,6 +417,56 @@ export function ResultsStep({
             })}
           </div>
         </div>
+
+        {/* Weekly Prep Plan */}
+        {localMenu.prepPlan && localMenu.prepPlan.length > 0 && (
+          <div className="mt-8 p-6 bg-[#FDFBF7] rounded-2xl border border-[#EBE6DE]">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">📋</span>
+              <h3 className="text-lg font-serif text-[#3A332C]">Weekly Prep Plan</h3>
+            </div>
+            <p className="text-xs text-[#7A7168] mt-1 mb-6">
+              Knock these out ahead of time — mostly on the weekend — to save cooking time on busy nights.
+              {totalPrepMinutes > 0 && ` About ${totalPrepMinutes} min total.`}
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+              {localMenu.prepPlan.map((group, groupIdx) => (
+                <div key={groupIdx} className="p-3 bg-white rounded-xl border border-[#EBE6DE]">
+                  <span className="text-xs font-medium text-[#AF8F7C] uppercase">
+                    {PREP_CATEGORY_ICONS[group.category] ?? "📝"} {group.category}
+                  </span>
+                  <ul className="mt-2.5 space-y-2.5">
+                    {group.tasks.map((task, taskIdx) => {
+                      const key = `${groupIdx}-${taskIdx}`;
+                      const checked = !!checkedPrepTasks[key];
+                      return (
+                        <li key={taskIdx}>
+                          <button
+                            type="button"
+                            onClick={() => togglePrepTask(key)}
+                            className="flex items-start gap-2 text-left w-full group"
+                          >
+                            {checked ? (
+                              <CheckCircle2 size={15} className="text-[#AF8F7C] flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <Circle size={15} className="text-[#D4CEC6] flex-shrink-0 mt-0.5 group-hover:text-[#AF8F7C] transition-colors" />
+                            )}
+                            <span className={`flex-1 ${checked ? "line-through text-[#B8B0A4]" : "text-[#3A332C]"}`}>
+                              {task.task}
+                              <span className="block text-[10px] text-[#B8B0A4] mt-0.5 font-normal">
+                                {task.suggestedDay} · {task.timeMinutes} min
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Grocery List */}
         <div className="mt-8 p-6 bg-[#FDFBF7] rounded-2xl border border-[#EBE6DE]">

@@ -67,5 +67,14 @@ export function buildMenuGenerationPrompt(params: PromptParams): string {
   - Each day contains a list of meals. For each meal, include the "type" (e.g., "Breakfast", "Dinner") and the recipe scaled for ONE serving (the UI will multiply by the number of adults).
   - Ensure the meals exactly match the requested "Meals to plan per day" (e.g., if only Dinner is requested, only generate Dinner).
   - Make the 'amount' field in ingredients easily multipliable (e.g., "1 cup", "200g", "0.5 tsp").
-  - Generate a consolidated, categorized grocery list for the entire week based on the recipes.`;
+  - Generate a consolidated, categorized grocery list for the entire week based on the recipes.
+
+  ## Weekly Prep Plan
+  Separately from the grocery list, generate a "prepPlan": a short, practical list of make-ahead tasks that cut down actual cooking time on busy weeknights. This is a GLOBAL plan for the week, not tied to any single meal — group tasks under whichever of these categories actually apply (omit a category entirely if nothing this week needs it):
+  - "Chop & Prep": washing/chopping/peeling produce shared across multiple meals
+  - "Marinate": proteins or tofu that benefit from marinating ahead
+  - "Soak & Sprout": dried beans, lentils, or grains that need soaking/sprouting
+  - "Ferment": batters, doughs, yogurt, or pickles that need fermentation time
+  - "Cook Ahead": batch-cookable components (grains, sauces, roasted veg, proteins) that reheat well later in the week
+  For each task: a short actionable instruction (e.g., "Chop onion, garlic, and ginger for the week — store airtight in the fridge"), an estimated time in minutes, and the best day to do it (usually the weekend or the day before a busy day, using the busy days above). Keep it tight — roughly 6-10 tasks total across all categories, only genuinely reusable prep, not a restatement of each recipe's own steps.`;
 }
