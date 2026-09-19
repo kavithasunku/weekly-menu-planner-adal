@@ -144,14 +144,15 @@ Props: `formData`, `generatedMenu`, `onMenuSwap`, `savedMenuId`, `onReset`, `isS
 |---------|---------|
 | **Header** | Meal type icon + name, sticky on scroll |
 | **Favorite button** | Saves/removes individual recipe via `POST/DELETE /api/recipes/favorites` |
+| **Replace this meal** | Two deterministic (no-AI) sources for swapping the slot — *Fetch from Favorites* (`POST /api/menus/replace-meal`, the user's `FavoriteRecipe` library) and *Fetch from Saved Menus* (`POST /api/menus/past-meals`, meals inside previously saved menus, attributed with source menu name + day). Both honour the current diet, cooking-time and busy-day selections but deliberately ignore cuisine, so the user's own saved meals stay pickable in any week; candidates are browsed in a carousel and previewed before confirming |
 | **Timing** | Prep time + cook time |
 | **Nutrition panel** | Calories, protein, carbs, fat — **scaled to the number of adults** |
 | **Ingredients** | Scaled amounts (multiplied by adult count) |
 | **Method** | Numbered step-by-step cooking instructions |
 
-**Auth-aware:** Prompts sign-in if unauthenticated user tries to favorite a recipe.
+**Auth-aware:** Prompts sign-in if an unauthenticated user tries to favorite a recipe or fetch a replacement.
 
-Props: `recipe`, `adults`, `onClose`, `sessionStatus`, `sourceMenuId`, `sourceDay`, `onRequestAuth`
+Props: `recipe`, `adults`, `onClose`, `sessionStatus`, `sourceMenuId`, `sourceDay`, `onRequestAuth`, `isDiabeticFriendly`, `replaceContext`, `onReplace`
 
 ---
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope, Shuffle, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Flame, Dumbbell, Wheat, Droplets, Timer, Loader2, Heart, Stethoscope, Shuffle, ChevronLeft, ChevronRight, CalendarClock } from "lucide-react";
 import { MealRecipe, MealType } from "@/types/planner";
 
 const MEAL_TYPE_ICONS: Record<MealType, string> = {
@@ -32,7 +32,30 @@ interface Props {
   onReplace: (meal: Omit<MealRecipe, "mealType">) => void;
 }
 
-type ReplaceResult = { candidates: Omit<MealRecipe, "mealType">[] };
+/** Where a replacement candidate came from — drives the panel's heading. */
+type ReplaceSource = "favorites" | "menus";
+
+/** A candidate plus the provenance line shown above it. */
+interface Candidate {
+  meal: Omit<MealRecipe, "mealType">;
+  /** e.g. "Week of Sep 8 · Tuesday". Empty for favorites, which need no attribution. */
+  origin: string;
+}
+
+interface ReplaceResult {
+  source: ReplaceSource;
+  candidates: Candidate[];
+}
+
+const SOURCE_LABELS: Record<ReplaceSource, string> = {
+  favorites: "From your favorites",
+  menus: "From your saved menus",
+};
+
+const EMPTY_MESSAGES: Record<ReplaceSource, string> = {
+  favorites: "No saved favorites fit this meal's diet or time budget yet.",
+  menus: "No meals in your saved menus fit this meal's diet or time budget yet.",
+};
 
 export function MealModal({
   recipe, adults, onClose, sessionStatus, sourceMenuId, sourceDay, onRequestAuth, isDiabeticFriendly,
@@ -41,12 +64,11 @@ export function MealModal({
   const [favId, setFavId] = useState<string | null>(null);
   const [isSavingFav, setIsSavingFav] = useState(false);
   const [favError, setFavError] = useState(false);
-  const [isFindingReplacement, setIsFindingReplacement] = useState(false);
+  const [pendingSource, setPendingSource] = useState<ReplaceSource | null>(null);
   const [replaceError, setReplaceError] = useState<string | null>(null);
   const [result, setResult] = useState<ReplaceResult | null>(null);
   const [candidateIndex, setCandidateIndex] = useState(0);
   const candidate = result?.candidates[candidateIndex] ?? null;
-  const hasSearched = result !== null;
 
   const totalCalories = recipe.caloriesPerServing * adults;
   const totalProtein = recipe.protein * adults;
@@ -94,38 +116,59 @@ export function MealModal({
     }
   };
 
-  const fetchFromFavorites = async () => {
+  const fetchCandidates = async (source: ReplaceSource) => {
     if (sessionStatus !== "authenticated") {
       onRequestAuth();
       return;
     }
-    setIsFindingReplacement(true);
+    const failureMessage =
+      source === "favorites"
+        ? "Couldn't reach your favorites. Please try again."
+        : "Couldn't reach your saved menus. Please try again.";
+
+    setPendingSource(source);
     setReplaceError(null);
+    setResult(null);
     try {
-      const res = await fetch("/api/menus/replace-meal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mealType: recipe.mealType,
-          isBusyDay: replaceContext.isBusyDay,
-          cuisines: replaceContext.cuisines,
-          diets: replaceContext.diets,
-          cookingTime: replaceContext.cookingTime,
-          excludeNames: [...replaceContext.excludeNames, recipe.name],
-        }),
-      });
+      const res = await fetch(
+        source === "favorites" ? "/api/menus/replace-meal" : "/api/menus/past-meals",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            // Cuisine deliberately not sent: replacements come from the user's own
+            // library, so an off-cuisine pick is a valid choice, not a mismatch.
+            mealType: recipe.mealType,
+            isBusyDay: replaceContext.isBusyDay,
+            diets: replaceContext.diets,
+            cookingTime: replaceContext.cookingTime,
+            excludeNames: [...replaceContext.excludeNames, recipe.name],
+            // Only meaningful to /past-meals: skip the menu we're editing.
+            ...(source === "menus" ? { excludeMenuId: sourceMenuId } : {}),
+          }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
-        setReplaceError(data.error || "Couldn't reach your favorites. Please try again.");
+        setReplaceError(typeof data.error === "string" ? data.error : failureMessage);
         return;
       }
-      setResult({ candidates: data.candidates });
+      // Favorites return bare meals; saved menus return meals with provenance.
+      const candidates: Candidate[] =
+        source === "favorites"
+          ? (data.candidates as Omit<MealRecipe, "mealType">[]).map((meal) => ({ meal, origin: "" }))
+          : (data.candidates as { meal: Omit<MealRecipe, "mealType">; sourceMenuName: string; sourceDay: string }[])
+              .map(({ meal, sourceMenuName, sourceDay }) => ({
+                meal,
+                origin: [sourceMenuName, sourceDay].filter(Boolean).join(" · "),
+              }));
+      setResult({ source, candidates });
       setCandidateIndex(0);
     } catch (e) {
-      console.error("Fetch from favorites failed", e);
-      setReplaceError("Couldn't reach your favorites. Please try again.");
+      console.error(`Fetch from ${source} failed`, e);
+      setReplaceError(failureMessage);
     } finally {
-      setIsFindingReplacement(false);
+      setPendingSource(null);
     }
   };
 
@@ -136,7 +179,7 @@ export function MealModal({
 
   const confirmReplacement = () => {
     if (!candidate) return;
-    onReplace(candidate);
+    onReplace(candidate.meal);
     onClose();
   };
 
@@ -205,15 +248,15 @@ export function MealModal({
             </div>
           )}
 
-          {/* Fetch from Favorites */}
-          {candidate ? (
+          {/* Replace this meal — from favorites, or from a previously saved menu */}
+          {candidate && result ? (
             <div className="rounded-2xl border border-[#AF8F7C] bg-[#FAF6F1] p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-medium text-[#AF8F7C] uppercase tracking-wide">
-                  <Heart size={13} />
-                  From your favorites
+                  {result.source === "favorites" ? <Heart size={13} /> : <CalendarClock size={13} />}
+                  {SOURCE_LABELS[result.source]}
                 </div>
-                {result && result.candidates.length > 1 && (
+                {result.candidates.length > 1 && (
                   <div className="flex items-center gap-1 text-xs text-[#7A7168]">
                     <button
                       onClick={() => showNextCandidate(-1)}
@@ -233,10 +276,14 @@ export function MealModal({
                   </div>
                 )}
               </div>
-              <p className="font-serif text-[#3A332C] leading-snug">{candidate.name}</p>
-              <p className="text-sm text-[#7A7168] font-light leading-relaxed">{candidate.description}</p>
+              <p className="font-serif text-[#3A332C] leading-snug">{candidate.meal.name}</p>
+              {candidate.origin && (
+                <p className="text-xs text-[#AF8F7C]">{candidate.origin}</p>
+              )}
+              <p className="text-sm text-[#7A7168] font-light leading-relaxed">{candidate.meal.description}</p>
               <p className="text-xs text-[#7A7168]">
-                Prep {candidate.prepTime} min{candidate.cookTime > 0 ? ` · Cook ${candidate.cookTime} min` : ""}
+                Prep {candidate.meal.prepTime} min
+                {candidate.meal.cookTime > 0 ? ` · Cook ${candidate.meal.cookTime} min` : ""}
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <button
@@ -255,21 +302,32 @@ export function MealModal({
             </div>
           ) : (
             <div>
-              <button
-                onClick={fetchFromFavorites}
-                disabled={isFindingReplacement}
-                className="flex items-center gap-2 text-sm font-medium text-[#AF8F7C] px-4 py-2 rounded-full border border-[#AF8F7C]/30 hover:bg-[#AF8F7C]/10 transition-colors disabled:opacity-50"
-              >
-                {isFindingReplacement ? (
-                  <><Loader2 size={14} className="animate-spin" /> Checking your favorites…</>
-                ) : (
-                  <><Shuffle size={14} /> Fetch from Favorites</>
-                )}
-              </button>
-              {hasSearched && !candidate && !replaceError && (
-                <p className="text-xs text-[#7A7168] mt-2">
-                  No saved favorites match this meal&rsquo;s cuisine, diet, or time budget yet.
-                </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => fetchCandidates("favorites")}
+                  disabled={pendingSource !== null}
+                  className="flex items-center gap-2 text-sm font-medium text-[#AF8F7C] px-4 py-2 rounded-full border border-[#AF8F7C]/30 hover:bg-[#AF8F7C]/10 transition-colors disabled:opacity-50"
+                >
+                  {pendingSource === "favorites" ? (
+                    <><Loader2 size={14} className="animate-spin" /> Checking your favorites…</>
+                  ) : (
+                    <><Shuffle size={14} /> Fetch from Favorites</>
+                  )}
+                </button>
+                <button
+                  onClick={() => fetchCandidates("menus")}
+                  disabled={pendingSource !== null}
+                  className="flex items-center gap-2 text-sm font-medium text-[#AF8F7C] px-4 py-2 rounded-full border border-[#AF8F7C]/30 hover:bg-[#AF8F7C]/10 transition-colors disabled:opacity-50"
+                >
+                  {pendingSource === "menus" ? (
+                    <><Loader2 size={14} className="animate-spin" /> Checking your saved menus…</>
+                  ) : (
+                    <><CalendarClock size={14} /> Fetch from Saved Menus</>
+                  )}
+                </button>
+              </div>
+              {result && result.candidates.length === 0 && !replaceError && (
+                <p className="text-xs text-[#7A7168] mt-2">{EMPTY_MESSAGES[result.source]}</p>
               )}
               {replaceError && <p className="text-xs text-red-500 mt-2">{replaceError}</p>}
             </div>
